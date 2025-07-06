@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 27: React GitHub Contributions Graph</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+</head>
+<body class="bg-gray-900 flex items-center justify-center min-h-screen p-4 font-sans">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+
+        // --- Helper function to generate mock data ---
+        const generateDataForPastYear = () => {
+            const data = new Map();
+            const today = new Date();
+            for (let i = 0; i < 365; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                const dateString = date.toISOString().split('T')[0];
+                const contributions = Math.floor(Math.random() * 25); // Random contributions from 0 to 24
+                data.set(dateString, contributions);
+            }
+            return data;
+        };
+        
+        const contributionData = generateDataForPastYear();
+
+        // --- Child Components ---
+        const Tooltip = ({ data, position }) => {
+            if (!data) return null;
+            const style = {
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                transform: 'translate(-50%, -110%)'
+            };
+            return (
+                <div style={style} className="absolute bg-gray-800 text-white text-sm rounded-md p-2 z-10 pointer-events-none">
+                    <strong>{data.contributions} contributions</strong> on {data.date}
+                </div>
+            );
+        };
+
+        const Cell = ({ date, contributions, onMouseEnter, onMouseLeave }) => {
+            const getColor = (count) => {
+                if (count === 0) return 'bg-gray-700';
+                if (count < 5) return 'bg-green-900';
+                if (count < 10) return 'bg-green-700';
+                if (count < 15) return 'bg-green-500';
+                return 'bg-green-400';
+            };
+
+            const handleMouseEnter = (e) => {
+                const rect = e.target.getBoundingClientRect();
+                onMouseEnter({
+                    contributions,
+                    date: new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                });
+            };
+
+            return (
+                <div
+                    className={`w-4 h-4 rounded-sm ${getColor(contributions)}`}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={onMouseLeave}
+                />
+            );
+        };
+
+        // --- Main App Component ---
+        const App = () => {
+            const [tooltipData, setTooltipData] = React.useState(null);
+            const [tooltipPosition, setTooltipPosition] = React.useState({ x: 0, y: 0 });
+
+            const handleMouseEnter = (data) => {
+                setTooltipData(data);
+                setTooltipPosition({ x: data.x, y: data.y });
+            };
+
+            const handleMouseLeave = () => {
+                setTooltipData(null);
+            };
+
+            const renderCells = () => {
+                const cells = [];
+                const today = new Date();
+                const startDate = new Date(today);
+                startDate.setDate(today.getDate() - 364);
+                
+                // Add blank cells to align the first day with the correct day of the week
+                for (let i = 0; i < startDate.getDay(); i++) {
+                    cells.push(<div key={`empty-start-${i}`} className="w-4 h-4"></div>);
+                }
+
+                for (let i = 0; i < 365; i++) {
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + i);
+                    const dateString = date.toISOString().split('T')[0];
+                    const contributions = contributionData.get(dateString) || 0;
+                    cells.push(
+                        <Cell
+                            key={dateString}
+                            date={dateString}
+                            contributions={contributions}
+                            onMouseEnter={handleMouseEnter}
+                            onMouseLeave={handleMouseLeave}
+                        />
+                    );
+                }
+                return cells;
+            };
+            
+            const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            return (
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-4xl mx-auto">
+                    <h2 className="text-xl font-semibold text-white mb-4">Contribution History</h2>
+                    <div className="relative">
+                        <Tooltip data={tooltipData} position={tooltipPosition} />
+                        <div className="grid grid-cols-53 grid-flow-col grid-rows-7 gap-1">
+                            {renderCells()}
+                        </div>
+                    </div>
+                     <div className="flex justify-between mt-2 text-xs text-gray-400 px-2">
+                        {monthLabels.map(month => <span key={month}>{month}</span>)}
+                    </div>
+                </div>
+            );
+        };
+        
+        // --- Tailwind CSS Custom Grid ---
+        //53-column grid for the weeks of the year.
+        tailwind.config = {
+            theme: {
+                extend: {
+                    gridTemplateColumns: {
+                        '53': 'repeat(53, minmax(0, 1fr))',
+                    }
+                }
+            }
+        }
+
+        // --- Rendering the App ---
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+
+</body>
+</html>
